@@ -1,0 +1,12 @@
+name: FilterTestProbe
+version: '1.0.0'
+main: com.nordfjell.nordfilter.test.FilterTestProbe
+api-version: '26.2'
+depend: [NordFilter, NordChat]
+commands:
+  fptest:
+    description: Local-only diagnostics.
+    permission: filtertest.console
+permissions:
+  filtertest.console:
+    default: op

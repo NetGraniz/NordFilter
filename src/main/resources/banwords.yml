@@ -1,0 +1,3 @@
+# Add lowercase words without punctuation. Matching ignores case, spaces and punctuation.
+# Avoid very short entries because they can occur inside harmless words.
+words: []

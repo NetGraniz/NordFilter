@@ -1,0 +1,21 @@
+language:
+  enforce-latin-script: true
+  rejection-message: 'Please use Latin letters.'
+
+spam:
+  enabled: true
+  # The third identical normalized message is blocked with the default limit of 2.
+  identical-message-limit: 2
+  window-seconds: 30
+
+punishments:
+  # Each new spam or banned-word violation advances one step; the last step repeats.
+  mute-durations-seconds: [30, 300, 3600, 86400]
+  violation-reset-hours: 168
+  muted-message: 'You are muted for {time}.'
+  violation-message: '{reason} You have been muted for {time}.'
+
+private-message-commands:
+  # Core NordChat/vanilla aliases are always checked; this list adds other aliases.
+  target-then-message: [msg, tell, whisper, pm, w]
+  message-only: [reply, r, last]

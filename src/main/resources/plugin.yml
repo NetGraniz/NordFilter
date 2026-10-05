@@ -1,0 +1,20 @@
+name: NordFilter
+version: '1.1.0'
+main: com.nordfjell.nordfilter.NordFilterPlugin
+api-version: '26.2'
+author: Nord Fjell
+description: Lightweight Latin-only chat, duplicate spam and banned-word filter.
+softdepend: [NordChat]
+
+commands:
+  nordfilter:
+    description: Inspect or manage NordFilter.
+    usage: /nordfilter <status|unmute|reset|reload|health> [player]
+    permission: nordfilter.admin
+
+permissions:
+  nordfilter.admin:
+    default: op
+  nordfilter.bypass:
+    description: Bypass language, spam, word and mute checks.
+    default: op
