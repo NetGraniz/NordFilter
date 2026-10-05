@@ -1,5 +1,5 @@
 name: NordFilter
-version: '1.1.0'
+version: '${project.version}'
 main: com.nordfjell.nordfilter.NordFilterPlugin
 api-version: '26.2'
 author: Nord Fjell

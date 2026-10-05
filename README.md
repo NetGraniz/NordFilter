@@ -1,5 +1,8 @@
 # NordFilter 1.1.0
 
+> Release build and installation requirements: see [BUILDING.md](BUILDING.md).
+> Older local paths below describe historical test fixtures, not the release build.
+
 Paper 26.2 / Java 25 moderation plugin. No packet interception or database.
 Sources, builds, release evidence and test sources remain on this network share.
 Minecraft runtimes and synthetic test data must stay in isolated LOCAL fixtures.
