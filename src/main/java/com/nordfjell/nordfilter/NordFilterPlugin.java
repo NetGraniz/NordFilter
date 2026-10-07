@@ -10,7 +10,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.*;
 import org.bukkit.event.player.*;
 import org.bukkit.plugin.java.JavaPlugin;
-import org.bukkit.scheduler.BukkitTask;
+import io.papermc.paper.threadedregions.scheduler.ScheduledTask;
 import org.jetbrains.annotations.NotNull;
 import java.io.IOException;
 import java.nio.file.*;
@@ -23,16 +23,16 @@ public final class NordFilterPlugin extends JavaPlugin implements Listener {
     private record ReloadResult(FilterSettings settings,String error){}
     private static final int CHAT_CAPACITY=128,CHAT_BUDGET=16;
     private final MainThreadBridge<ChatJob,FilterEngine.Result> chatBridge=new MainThreadBridge<>(CHAT_CAPACITY);
-    private final Map<UUID,Player> sessions=new HashMap<>();
-    private final Map<UUID,Long> noticeAt=new HashMap<>();
+    private final Map<UUID,Player> sessions=new ConcurrentHashMap<>();
+    private final Map<UUID,Long> noticeAt=new ConcurrentHashMap<>();
     private final ArrayBlockingQueue<ReloadResult> reloadResults=new ArrayBlockingQueue<>(1);
     private final AtomicBoolean reloadPending=new AtomicBoolean();
     private final PlainTextComponentSerializer plainText=PlainTextComponentSerializer.plainText();
     private PunishmentStore punishmentStore;
-    private FilterSettings settings;
-    private FilterEngine engine;
+    private volatile FilterSettings settings;
+    private volatile FilterEngine engine;
     private ScheduledExecutorService writer;
-    private BukkitTask pump;
+    private ScheduledTask pump;
     private volatile boolean accepting;
     private int ticks;
     private Path directory;
@@ -63,9 +63,9 @@ public final class NordFilterPlugin extends JavaPlugin implements Listener {
         }
         for(Player player:Bukkit.getOnlinePlayers())sessions.put(player.getUniqueId(),player);
         getServer().getPluginManager().registerEvents(this,this);
-        pump=Bukkit.getScheduler().runTaskTimer(this,this::tick,1,1);
+        pump=Bukkit.getGlobalRegionScheduler().runAtFixedRate(this,ignored -> tick(),1,1);
         accepting=true;
-        if(engine!=null)getLogger().info("NordFilter 1.1.0 enabled: bounded main-thread checks and atomic background persistence.");
+        if(engine!=null)getLogger().info("NordFilter enabled: bounded entity-owned checks and atomic background persistence.");
         else getLogger().severe("NordFilter started in fail-closed mode.");
     }
     @Override public void onDisable(){
@@ -93,7 +93,17 @@ public final class NordFilterPlugin extends JavaPlugin implements Listener {
             reloadPending.set(false);
         }
         long now=System.nanoTime();
-        chatBridge.drain(CHAT_BUDGET,now,this::inspectMain);
+        chatBridge.drainAsync(CHAT_BUDGET,now,ticket -> {
+            Player player=ticket.payload.player();
+            Runnable retired=()->{ticket.cancel();ticket.release();};
+            if(!player.getScheduler().execute(this,()->{
+                try {
+                    if(ticket.result.isDone()||System.nanoTime()-ticket.deadline>=0){ticket.cancel();return;}
+                    ticket.complete(inspectMain(ticket.payload));
+                }catch(RuntimeException error){ticket.result.completeExceptionally(error);}
+                finally{ticket.release();}
+            },retired,1L))retired.run();
+        });
         if(++ticks%20==0&&engine!=null)engine.prune(now);
     }
     @EventHandler public void onJoin(PlayerJoinEvent event){
@@ -109,7 +119,7 @@ public final class NordFilterPlugin extends JavaPlugin implements Listener {
         if(!accepting){event.viewers().clear();return;}
         FilterEngine.Result result;
         ChatJob job=new ChatJob(event.getPlayer(),event.message());
-        if(Bukkit.isPrimaryThread())result=inspectMain(job);
+        if(Bukkit.isOwnedByCurrentRegion(event.getPlayer()))result=inspectMain(job);
         else{
             var ticket=chatBridge.offer(job,System.nanoTime()+2_000_000_000L);
             if(ticket==null){event.viewers().clear();return;}
@@ -121,7 +131,7 @@ public final class NordFilterPlugin extends JavaPlugin implements Listener {
         if(!result.allowed())event.viewers().clear();
     }
     private FilterEngine.Result inspectMain(ChatJob job){
-        if(!Bukkit.isPrimaryThread())throw new IllegalStateException("Moderation must run on main thread");
+        if(!Bukkit.isOwnedByCurrentRegion(job.player()))throw new IllegalStateException("Moderation must run on the player's owning region");
         Player player=job.player();UUID id=player.getUniqueId();
         if(!accepting||sessions.get(id)!=player||!player.isOnline())return FilterEngine.Result.block("");
         FilterEngine.Result result=engine==null?FilterEngine.Result.block("Moderation is unavailable; please try later.")
@@ -131,7 +141,7 @@ public final class NordFilterPlugin extends JavaPlugin implements Listener {
     }
     @EventHandler(priority=EventPriority.HIGHEST,ignoreCancelled=true)
     public void onPrivateMessageCommand(PlayerCommandPreprocessEvent event){
-        if(!Bukkit.isPrimaryThread()){event.setCancelled(true);return;}
+        if(!Bukkit.isOwnedByCurrentRegion(event.getPlayer())){event.setCancelled(true);return;}
         String label=PrivateCommands.label(event.getMessage());
         Command resolved=getServer().getCommandMap().getCommand(label);
         // Core commands remain recognized even when operator settings failed to initialize.
@@ -168,7 +178,7 @@ public final class NordFilterPlugin extends JavaPlugin implements Listener {
         }
     }
     @Override public boolean onCommand(@NotNull CommandSender sender,@NotNull Command command,@NotNull String label,@NotNull String[] args){
-        if(!Bukkit.isPrimaryThread()){getLogger().warning("Rejected asynchronous moderation command callback.");return true;}
+        if(sender instanceof Player player && !Bukkit.isOwnedByCurrentRegion(player)){getLogger().warning("Rejected off-region moderation command callback.");return true;}
         if(!sender.hasPermission("nordfilter.admin")){
             sender.sendMessage(Component.text("You do not have permission.",NamedTextColor.RED));return true;
         }

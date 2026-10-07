@@ -17,10 +17,10 @@ final class FilterEngine {
     private FilterSettings settings;
     private final Map<UUID,History> histories=new HashMap<>();
     FilterEngine(PunishmentStore store,FilterSettings settings){this.store=store;this.settings=settings;}
-    void settings(FilterSettings next){settings=next;histories.clear();}
-    void prune(long now){histories.values().removeIf(history->now-history.lastSeen>settings.spamWindowNanos());}
-    int histories(){return histories.size();}
-    Result inspect(UUID id,boolean bypass,String message,long wall,long monotonic){
+    synchronized void settings(FilterSettings next){settings=next;histories.clear();}
+    synchronized void prune(long now){histories.values().removeIf(history->now-history.lastSeen>settings.spamWindowNanos());}
+    synchronized int histories(){return histories.size();}
+    synchronized Result inspect(UUID id,boolean bypass,String message,long wall,long monotonic){
         if(!store.available())return Result.block("Moderation storage is unavailable; please try again later.");
         if(bypass)return Result.allow();
         if(message==null||message.isBlank()||message.length()>MAX_BODY

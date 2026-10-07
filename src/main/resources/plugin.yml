@@ -2,6 +2,7 @@ name: NordFilter
 version: '${project.version}'
 main: com.nordfjell.nordfilter.NordFilterPlugin
 api-version: '26.2'
+folia-supported: true
 author: Nord Fjell
 description: Lightweight Latin-only chat, duplicate spam and banned-word filter.
 softdepend: [NordChat]

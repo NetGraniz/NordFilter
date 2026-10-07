@@ -9,6 +9,6 @@ if ($QueueProject) {
 }
 & $MavenCommand -B -ntp -f (Join-Path $PSScriptRoot 'pom.xml') clean verify
 if ($LASTEXITCODE -ne 0) { throw 'NordFilter build or tests failed.' }
-$jar = Join-Path $PSScriptRoot 'target/NordFilter-1.1.1.jar'
+$jar = Join-Path $PSScriptRoot 'target/NordFilter-1.2.0.jar'
 if (-not (Test-Path -LiteralPath $jar -PathType Leaf)) { throw 'Expected release JAR missing.' }
 Get-FileHash -LiteralPath $jar -Algorithm SHA256
