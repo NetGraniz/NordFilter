@@ -16,8 +16,8 @@ Minecraft runtimes and synthetic test data must stay in isolated LOCAL fixtures.
 - Default mute progression remains 30 seconds, 5 minutes, 1 hour and 24 hours.
 - Built-in PM aliases are always checked, including tell and namespaced variants;
   command-map canonical aliases and earlier command rewrites are recognized.
-- Bukkit session/permission checks execute only on the main thread via one bounded
-  pump; disk persistence executes on one owned background worker.
+- Bukkit session/permission checks execute on the player's owning region via a bounded
+  bridge; disk persistence executes on one owned background worker.
 - Pending mutes apply immediately. Unmute/reset take effect only after atomic
   persistence. The console acknowledgement says queued, not durably completed.
 - Corrupt typed YAML fails closed without overwriting it. Invalid settings reload
@@ -32,8 +32,8 @@ Reload is asynchronous: check the console outcome and health. It is not plugin
 hot-reload. Failed punishment initialization requires offline repair and restart.
 Unknown accounts are not manufactured by a status lookup.
 
-Build: run build.ps1 against an isolated local Paper 26.2 fixture; it compiles and
-runs the assertion-enabled regression suite, then packages build/NordFilter-1.1.0.jar.
+Build: run build.ps1 or mvn clean verify with Maven and JDK 25; it runs the
+regression suite and packages target/NordFilter-1.2.0.jar without live server libraries.
 test-support/integration.cjs tests loopback-only Paper/Velocity/NanoLimbo;
 --old-chat selects the unchanged production NordChat JAR for local compatibility.
 FilterTestProbe provides LOCAL-only synthetic fault injection and must NEVER be
